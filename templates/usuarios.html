@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações - Salutem Script</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f4f6f9; }
+        .sidebar {
+            width: 260px;
+            height: 100vh;
+            position: fixed;
+            background-color: #1a2235;
+            color: white;
+            z-index: 1000;
+        }
+        .sidebar-brand { border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-link {
+            color: #adb5bd;
+            text-decoration: none;
+            padding: 10px 20px;
+            display: block;
+            transition: 0.2s;
+        }
+        .sidebar-link:hover, .sidebar-link.active {
+            color: white;
+            background-color: rgba(255,255,255,0.05);
+            border-left: 4px solid #0d6efd;
+        }
+        .main-content { margin-left: 260px; padding: 30px; }
+        .users-card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            overflow: hidden;
+        }
+        .users-table thead th {
+            background: #1e293b;
+            color: #fff;
+            font-size: 0.75rem;
+            letter-spacing: 0.04em;
+            font-weight: 600;
+            border: none;
+            padding: 12px 16px;
+        }
+        .users-table tbody td {
+            padding: 14px 16px;
+            vertical-align: middle;
+            border-color: #eef1f4;
+        }
+        .users-table tbody tr:hover { background: #f8fafc; }
+        .badge-tipo-administrador {
+            background: #dc3545;
+            color: #fff;
+            font-size: 0.7rem;
+            letter-spacing: 0.03em;
+            padding: 0.4em 0.7em;
+        }
+        .badge-tipo-usuario {
+            background: #e9ecef;
+            color: #495057;
+            font-size: 0.7rem;
+            letter-spacing: 0.03em;
+            padding: 0.4em 0.7em;
+        }
+        .badge-status {
+            background: #198754;
+            color: #fff;
+            font-size: 0.75rem;
+            padding: 0.4em 0.7em;
+        }
+        .search-wrap { position: relative; }
+        .search-wrap .bi-search {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+        }
+        .search-wrap input { padding-left: 40px; }
+        .modulos-box {
+            background: #f8fafc;
+            border: 1px solid #e6ebf1;
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+        .modal-header .btn-close { filter: invert(1); }
+        #modalUsuario .modal-content { border: none; border-radius: 10px; overflow: hidden; }
+    </style>
+</head>
+<body>
+    <nav class="sidebar d-flex flex-column">
+        <div class="sidebar-brand p-4 text-center">
+            <h5 class="mt-2 mb-0 fw-bold">SALUTEM SCRIPT</h5>
+            <small class="text-muted">v2.0</small>
+        </div>
+        <div class="flex-grow-1 py-3">
+            {% set ativo = 'usuarios' %}
+            {% include "util/menu_links.html" %}
+        </div>
+        <div class="p-3 border-top border-secondary">
+            <div class="d-flex align-items-center">
+                <div class="bg-primary rounded-circle text-center me-2" style="width: 35px; height: 35px; line-height: 35px;">A</div>
+                <div>
+                    <span class="d-block" style="font-size: 0.9rem;">{{ request.session.get('user', '') }}</span>
+                    <a href="/logout" class="text-danger text-decoration-none" style="font-size: 0.875em;"><i class="bi bi-box-arrow-right"></i> Sair</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        {% set aba_ativa = 'usuarios' %}
+        {% include "util/config_tabs.html" %}
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+            <p class="text-muted mb-0">Crie contas e escolha o que cada uma pode acessar</p>
+            <button type="button" class="btn btn-primary text-nowrap" id="btn-novo">
+                <i class="bi bi-plus-lg me-1"></i> Novo Usuário
+            </button>
+        </div>
+
+        {% if erro %}
+        <div class="alert alert-danger">{{ erro }}</div>
+        {% endif %}
+
+        <div class="search-wrap mb-3">
+            <i class="bi bi-search"></i>
+            <input type="search" class="form-control" id="busca-usuario" placeholder="Buscar por nome ou usuário..." autocomplete="off">
+        </div>
+
+        <div class="card users-card">
+            <div class="px-3 py-2 text-muted small border-bottom bg-white" id="contagem">
+                {% if usuarios %}Exibindo 1–{{ usuarios|length }} de {{ usuarios|length }}{% else %}Exibindo 0 de 0{% endif %}
+            </div>
+            <div class="table-responsive">
+                <table class="table users-table mb-0" id="tabela-usuarios">
+                    <thead>
+                        <tr>
+                            <th>NOME</th>
+                            <th>USUÁRIO</th>
+                            <th>TIPO</th>
+                            <th>STATUS</th>
+                            <th class="text-end">AÇÕES</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in usuarios %}
+                        <tr data-busca="{{ u.nome }} {{ u.username }}">
+                            <td class="fw-semibold">{{ u.nome }}</td>
+                            <td class="text-muted">{{ u.username }}</td>
+                            <td>
+                                <span class="badge rounded-pill badge-tipo-{{ u.tipo }}">{{ u.tipo_label }}</span>
+                            </td>
+                            <td>
+                                {% if u.ativo %}
+                                <span class="badge rounded-pill badge-status">Ativo</span>
+                                {% else %}
+                                <span class="badge rounded-pill text-bg-secondary">Inativo</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <button type="button"
+                                    class="btn btn-sm btn-outline-primary btn-editar"
+                                    title="Editar"
+                                    data-id="{{ u.id }}"
+                                    data-nome="{{ u.nome }}"
+                                    data-username="{{ u.username }}"
+                                    data-tipo="{{ u.tipo }}"
+                                    data-permissoes="{{ u.permissoes|join(',') }}"
+                                    data-admin="{{ '1' if u.is_admin else '0' }}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                {% if not u.is_admin %}
+                                <form class="d-inline" method="post" action="/usuarios/{{ u.id }}/excluir" onsubmit="return confirm('Excluir este usuário?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">Nenhum usuário cadastrado.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal fade" id="modalUsuario" tabindex="-1" aria-labelledby="modalUsuarioTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalUsuarioTitulo"><i class="bi bi-person-plus me-2"></i>Novo Usuário</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <form method="post" action="/usuarios" id="form-usuario">
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="campo-nome">Nome</label>
+                                <input class="form-control" id="campo-nome" name="nome" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="campo-username">Usuário</label>
+                                <input class="form-control" id="campo-username" name="username" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="campo-senha" id="label-senha">Senha (obrigatória)</label>
+                                <input class="form-control" id="campo-senha" name="password" type="password" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" for="campo-tipo">Tipo</label>
+                                <select class="form-select" id="campo-tipo" name="tipo">
+                                    <option value="usuario">Usuário</option>
+                                    <option value="administrador">Administrador</option>
+                                </select>
+                                <input type="hidden" id="tipo-hidden" name="tipo" value="administrador" disabled>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-3 mt-4 mb-2">
+                            <span class="fw-semibold">Módulos com acesso</span>
+                            <div class="form-check mb-0">
+                                <input class="form-check-input" type="checkbox" id="perm-todos">
+                                <label class="form-check-label" for="perm-todos">Todos</label>
+                            </div>
+                        </div>
+                        <div class="modulos-box">
+                            <div class="row">
+                                {% for codigo, rotulo in permissoes_catalogo %}
+                                <div class="col-md-6">
+                                    <div class="form-check py-1">
+                                        <input class="form-check-input perm-check" type="checkbox" name="permissoes" value="{{ codigo }}" id="perm-{{ codigo }}">
+                                        <label class="form-check-label" for="perm-{{ codigo }}">{{ rotulo }}</label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="btn-salvar">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const modalEl = document.getElementById('modalUsuario');
+        const form = document.getElementById('form-usuario');
+        const campoTipo = document.getElementById('campo-tipo');
+        const tipoHidden = document.getElementById('tipo-hidden');
+        const campoUsername = document.getElementById('campo-username');
+        const campoSenha = document.getElementById('campo-senha');
+        const labelSenha = document.getElementById('label-senha');
+
+        function aplicarTipo() {
+            const admin = campoTipo.value === 'administrador';
+            const checks = document.querySelectorAll('.perm-check');
+            const todos = document.getElementById('perm-todos');
+            checks.forEach((el) => {
+                if (admin) el.checked = true;
+                el.disabled = admin;
+            });
+            todos.checked = admin || Array.from(checks).every((el) => el.checked);
+            todos.disabled = admin;
+        }
+
+        function abrirForm(dados) {
+            form.reset();
+            document.getElementById('campo-nome').value = dados.nome || '';
+            campoUsername.value = dados.username || '';
+            campoTipo.value = dados.tipo || 'usuario';
+            campoSenha.value = '';
+
+            const editando = Boolean(dados.id);
+            form.action = editando ? '/usuarios/' + dados.id : '/usuarios';
+            document.getElementById('modalUsuarioTitulo').innerHTML = editando
+                ? '<i class="bi bi-pencil me-2"></i>Editar Usuário'
+                : '<i class="bi bi-person-plus me-2"></i>Novo Usuário';
+            campoSenha.required = !editando;
+            labelSenha.textContent = editando ? 'Senha (deixe em branco para manter)' : 'Senha (obrigatória)';
+            campoSenha.placeholder = editando ? 'Deixe em branco para manter' : '';
+            document.getElementById('btn-salvar').textContent = editando ? 'Salvar' : 'Criar usuário';
+
+            const travarAdmin = Boolean(dados.is_admin);
+            campoUsername.readOnly = travarAdmin;
+            campoTipo.disabled = travarAdmin;
+            tipoHidden.disabled = !travarAdmin;
+
+            const marcadas = new Set(dados.permissoes || []);
+            document.querySelectorAll('.perm-check').forEach((el) => {
+                el.checked = marcadas.has(el.value);
+            });
+            aplicarTipo();
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+
+        document.getElementById('btn-novo').addEventListener('click', () => {
+            abrirForm({ id: null, nome: '', username: '', tipo: 'usuario', permissoes: [], is_admin: false });
+        });
+
+        document.querySelectorAll('.btn-editar').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                abrirForm({
+                    id: btn.dataset.id,
+                    nome: btn.dataset.nome,
+                    username: btn.dataset.username,
+                    tipo: btn.dataset.tipo,
+                    permissoes: (btn.dataset.permissoes || '').split(',').filter(Boolean),
+                    is_admin: btn.dataset.admin === '1',
+                });
+            });
+        });
+
+        campoTipo.addEventListener('change', aplicarTipo);
+        document.getElementById('perm-todos').addEventListener('change', (event) => {
+            document.querySelectorAll('.perm-check').forEach((el) => {
+                el.checked = event.target.checked;
+            });
+        });
+        document.querySelectorAll('.perm-check').forEach((el) => {
+            el.addEventListener('change', () => {
+                const checks = document.querySelectorAll('.perm-check');
+                document.getElementById('perm-todos').checked = Array.from(checks).every((item) => item.checked);
+            });
+        });
+
+        const busca = document.getElementById('busca-usuario');
+        const contagem = document.getElementById('contagem');
+        busca.addEventListener('input', () => {
+            const q = busca.value.trim().toLowerCase();
+            const linhas = document.querySelectorAll('#tabela-usuarios tbody tr[data-busca]');
+            let visiveis = 0;
+            linhas.forEach((tr) => {
+                const show = !q || (tr.dataset.busca || '').toLowerCase().includes(q);
+                tr.hidden = !show;
+                if (show) visiveis += 1;
+            });
+            const total = linhas.length;
+            contagem.textContent = visiveis
+                ? 'Exibindo 1–' + visiveis + ' de ' + total
+                : 'Exibindo 0 de ' + total;
+        });
+
+        {% if form %}
+        document.addEventListener('DOMContentLoaded', () => {
+            abrirForm({{ form | tojson }});
+        });
+        {% endif %}
+    </script>
+</body>
+</html>

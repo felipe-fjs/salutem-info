@@ -1,0 +1,5 @@
+docker pull felipejoaquim2003/salutem-info:latest
+
+New-Item -ItemType Directory -Force -Path "C:\salutem\data"
+
+docker run -d --name salutem-info -p 8000:8000 -v "C:\salutem\data:/app/data" --restart unless-stopped felipejoaquim2003/salutem-info:latest

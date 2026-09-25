@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salutem Script - Resumo Geral</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.9"></script>
+
+    <style>
+        body { background-color: #f4f6f9; }
+        
+        /* Menu Lateral Escuro */
+        .sidebar {
+            width: 260px;
+            height: 100vh;
+            position: fixed;
+            background-color: #1a2235;
+            color: white;
+            z-index: 1000;
+        }
+        .sidebar-brand { border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-link {
+            color: #adb5bd;
+            text-decoration: none;
+            padding: 10px 20px;
+            display: block;
+            transition: 0.2s;
+        }
+        .sidebar-link:hover, .sidebar-link.active {
+            color: white;
+            background-color: rgba(255,255,255,0.05);
+            border-left: 4px solid #0d6efd;
+        }
+        
+        /* Conteúdo Principal */
+        .main-content {
+            margin-left: 260px;
+            padding: 30px;
+        }
+
+        /* Estilo dos Cards (KPIs) */
+        .kpi-card {
+            border-radius: 8px;
+            border: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            transition: transform 0.2s;
+        }
+        .kpi-card:hover { transform: translateY(-3px); }
+        .border-top-primary { border-top: 4px solid #0d6efd; }
+        .border-top-success { border-top: 4px solid #198754; }
+        .border-top-warning { border-top: 4px solid #ffc107; }
+        .border-top-danger { border-top: 4px solid #dc3545; }
+        .border-top-info { border-top: 4px solid #0dcaf0; }
+        .border-top-secondary { border-top: 4px solid #6c757d; }
+
+        .dashboard-header-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        tr.unidade-row { cursor: pointer; }
+        tr.unidade-row.table-active { --bs-table-bg: rgba(13, 110, 253, 0.08); }
+        a.condicao-link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            height: 100%;
+            cursor: pointer;
+        }
+        a.condicao-link:hover .kpi-card {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+        }
+        a.condicao-link.ativa .kpi-card,
+        .kpi-card.kpi-card-ativa {
+            outline: 2px solid #0d6efd;
+            box-shadow: 0 4px 14px rgba(13, 110, 253, 0.18);
+        }
+        a.condicao-toggle.ativa {
+            outline: 2px solid #0d6efd;
+            border-radius: 6px;
+            background: rgba(13, 110, 253, 0.06);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar d-flex flex-column">
+        <div class="sidebar-brand p-4 text-center">
+            <!-- <i class="bi bi-triangle-half fs-2 text-primary"></i> -->
+            <h5 class="mt-2 mb-0 fw-bold">SALUTEM SCRIPT</h5>
+            <small class="text-muted">v2.0</small>
+        </div>
+        <div class="flex-grow-1 py-3">
+            {% set ativo = 'inicio' %}
+            {% include "util/menu_links.html" %}
+        </div>
+        <div class="p-3 border-top border-secondary">
+            <div class="d-flex align-items-center">
+                <div class="bg-primary rounded-circle text-center me-2" style="width: 35px; height: 35px; line-height: 35px;">A</div>
+                <div>
+                    <span class="d-block" style="font-size: 0.9rem;">{{ request.session.get('user', '') }}</span>
+                    <a href="/logout" class="text-danger text-decoration-none" style="font-size: 0.875em;"><i class="bi bi-box-arrow-right"></i> Sair</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ÁREA PRINCIPAL -->
+    <main class="main-content">
+        
+        <!-- HEADER -->
+        <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+            <div>
+                {% if condicoes_ativas %}
+                <h3 class="fw-bold mb-0">Resumo filtrado</h3>
+                {% else %}
+                <h3 class="fw-bold mb-0">Resumo Geral</h3>
+                {% endif %}
+                <p class="text-muted mb-0"><i class="bi bi-geo-alt-fill text-danger"></i> Marechal Deodoro - AL</p>
+                <p class="mb-0 mt-2 d-flex flex-wrap gap-2">
+                    {% for label in condicoes_labels %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                        <i class="bi bi-heart-pulse me-1"></i>{{ label }}
+                    </span>
+                    {% endfor %}
+                {% if filtros_ativos.pesquisa and filtros_ativos.pesquisa != 'ativo' %}
+                    <span class="badge bg-secondary-subtle text-secondary border">Pesquisa: {{ filtros_ativos.pesquisa }}</span>
+                    {% endif %}
+                    {% if filtros_ativos.micro_area %}
+                    <span class="badge bg-info-subtle text-info border">Microárea {{ filtros_ativos.micro_area }}</span>
+                    {% endif %}
+                    {% if unidade_ativa %}
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                        <i class="bi bi-building me-1"></i>{{ nome_unidade or unidade_ativa }}
+                    </span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="dashboard-header-actions">
+                {% if condicoes_ativas %}
+                <a href="{{ resumo_url_limpo }}" class="btn btn-outline-secondary btn-sm"
+                    hx-get="{{ resumo_url_limpo }}"
+                    hx-target="body"
+                    hx-push-url="true">
+                    <i class="bi bi-x-circle"></i> Limpar condições
+                </a>
+                {% endif %}
+                {% if condicoes_ativas|length == 1 %}
+                <a href="/cadastros/condicoes/{{ condicoes_ativas[0] }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-building"></i> Por unidade
+                </a>
+                {% endif %}
+                {% if unidade_ativa %}
+                <a href="{{ resumo_url_sem_unidade }}" class="btn btn-outline-secondary btn-sm"
+                    hx-get="{{ resumo_url_sem_unidade }}"
+                    hx-target="body"
+                    hx-push-url="true">
+                    <i class="bi bi-x-circle"></i> Todas as unidades
+                </a>
+                {% endif %}
+                <button class="btn btn-outline-primary btn-sm"
+                    hx-get="{{ resumo_url_atual }}"
+                    hx-target="body"
+                    hx-push-url="true">
+                    <i class="bi bi-arrow-clockwise"></i> Atualizar Dados
+                </button>
+            </div>
+        </div>
+
+        {% include "util/extracao_aviso.html" %}
+
+        <!-- SEÇÃO: POPULAÇÃO (Baseada no resumo_cidadao e condicoes) -->
+        <h5 class="fw-bold text-secondary mb-3"><i class="bi bi-people-fill me-2"></i> População</h5>
+        <div class="row g-3 mb-4">
+            <!-- Total -->
+            <div class="col-md-2">
+                <div class="card kpi-card border-top-primary h-100">
+                    <div class="card-body text-center">
+                        <h6 class="text-muted text-uppercase mb-1" style="font-size: 0.75rem;">Total Cadastros</h6>
+                        <h2 class="fw-bold mb-0 text-primary">{{ resumo_cidadao.total_cadastros_unicos }}</h2>
+                    </div>
+                </div>
+            </div>
+            <!-- Sexo -->
+            <div class="col-md-2">
+                <div class="card kpi-card border-top-info h-100">
+                    <div class="card-body d-flex justify-content-around align-items-center">
+                        <div class="text-center">
+                            <i class="bi bi-gender-male fs-5 text-primary"></i>
+                            <h5 class="mb-0">{{ resumo_cidadao.sexo_masculino }}</h5>
+                            <small class="text-muted">Homens</small>
+                        </div>
+                        <div class="text-center">
+                            <i class="bi bi-gender-female fs-5 text-danger"></i>
+                            <h5 class="mb-0">{{ resumo_cidadao.sexo_feminino }}</h5>
+                            <small class="text-muted">Mulheres</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Gestantes & Sit. Rua (condicoes) -->
+            <div class="col-md-2">
+                <div class="card kpi-card border-top-warning h-100">
+                    <div class="card-body d-flex justify-content-around align-items-center">
+                        <a href="{{ toggle_urls.gestantes }}"
+                           class="condicao-link condicao-toggle text-center{% if 'gestantes' in condicoes_ativas %} ativa{% endif %}"
+                           hx-get="{{ toggle_urls.gestantes }}"
+                           hx-target="body"
+                           hx-push-url="true">
+                            <i class="bi bi-balloon-heart text-danger fs-5"></i>
+                            <h5 class="mb-0">{{ condicoes.gestantes }}</h5>
+                            <small class="text-muted">Gestantes</small>
+                        </a>
+                        <a href="{{ toggle_urls.morador_de_rua }}"
+                           class="condicao-link condicao-toggle text-center{% if 'morador_de_rua' in condicoes_ativas %} ativa{% endif %}"
+                           hx-get="{{ toggle_urls.morador_de_rua }}"
+                           hx-target="body"
+                           hx-push-url="true">
+                            <i class="bi bi-house-x text-secondary fs-5"></i>
+                            <h5 class="mb-0">{{ condicoes.morador_de_rua }}</h5>
+                            <small class="text-muted">Sit. Rua</small>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <!-- Ciclo de Vida -->
+            <div class="col-md-3">
+                <div class="card kpi-card border-top-success h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted text-uppercase text-center mb-3" style="font-size: 0.8rem;">Ciclo de Vida</h6>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="text-center">
+                                <i class="bi bi-emoji-smile text-info fs-5 mb-1"></i>
+                                <h5 class="fw-bold mb-0">{{ resumo_cidadao.menores_18 | default('0') }}</h5>
+                                <small class="text-muted" style="font-size: 0.75rem;">0 a 17</small>
+                            </div>
+                            <div class="text-center border-start border-end px-2">
+                                <i class="bi bi-person-fill text-primary fs-5 mb-1"></i>
+                                <h5 class="fw-bold mb-0">{{ resumo_cidadao.adultos | default('0') }}</h5>
+                                <small class="text-muted" style="font-size: 0.75rem;">18 a 59</small>
+                            </div>
+                            <div class="text-center">
+                                <i class="bi bi-person-wheelchair text-warning fs-5 mb-1"></i>
+                                <h5 class="fw-bold mb-0">{{ resumo_cidadao.idosos | default('0') }}</h5>
+                                <small class="text-muted" style="font-size: 0.75rem;">60+</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Óbitos 30 dias -->
+            <div class="col-md-3">
+                <a href="/cadastros/obitos?data_inicio={{ obitos_30_inicio }}" class="condicao-link">
+                    <div class="card kpi-card border-top-danger h-100">
+                        <div class="card-body text-center">
+                            <h6 class="text-muted text-uppercase mb-1" style="font-size: 0.75rem;">Óbitos (30 dias)</h6>
+                            <h2 class="fw-bold mb-0 text-danger">{{ obitos_30_dias | default(0) }}</h2>
+                            <small class="text-muted">Registrados na última ficha</small>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Cadastros por unidade de atendimento -->
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <div class="card kpi-card border-top-primary">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                            <h6 class="text-muted text-uppercase mb-0">
+                                <i class="bi bi-building me-2"></i>Cadastros por unidade
+                            </h6>
+                            <small class="text-muted">Clique em uma unidade para filtrar o resumo</small>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col">Unidade</th>
+                                        <th scope="col">CNES</th>
+                                        <th scope="col" class="text-end">Cadastros</th>
+                                        <th scope="col" class="text-end">% da base</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if cadastros_por_unidade %}
+                                        {% for u in cadastros_por_unidade %}
+                                        <tr class="unidade-row {% if unidade_ativa and unidade_ativa == u.nu_cnes %}table-active{% endif %}"
+                                            {% if u.nu_cnes %}
+                                            hx-get="/cadastros/resumo?{% for c in condicoes_ativas %}condicao={{ c }}&{% endfor %}unidade={{ u.nu_cnes }}{% if filtros_ativos.idade_min is not none %}&idade_min={{ filtros_ativos.idade_min }}{% endif %}{% if filtros_ativos.idade_max is not none %}&idade_max={{ filtros_ativos.idade_max }}{% endif %}{% if filtros_ativos.data_nascimento %}&data_nascimento={{ filtros_ativos.data_nascimento }}{% endif %}{% if filtros_ativos.pesquisa and filtros_ativos.pesquisa != 'ativo' %}&pesquisa={{ filtros_ativos.pesquisa }}{% endif %}"
+                                            hx-target="body"
+                                            hx-push-url="true"
+                                            {% endif %}>
+                                            <td>{{ u.no_unidade_saude }}</td>
+                                            <td>{{ u.nu_cnes or '—' }}</td>
+                                            <td class="text-end fw-semibold">{{ u.total_cadastros }}</td>
+                                            <td class="text-end">
+                                                {% if total_geral_unidades %}
+                                                    {{ '%.1f'|format((u.total_cadastros / total_geral_unidades) * 100) }}%
+                                                {% else %}
+                                                    0.0%
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted py-3">Nenhum cadastro encontrado</td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FILTROS MVP (unidade vem do clique na tabela acima) -->
+        <div class="card kpi-card border-top-primary mb-4">
+            <div class="card-body">
+                <form method="get" action="/cadastros/resumo" class="row g-3 align-items-end" id="form-filtros-resumo">
+                    {% for c in condicoes_ativas %}
+                    <input type="hidden" name="condicao" value="{{ c }}">
+                    {% endfor %}
+                    {% if unidade_ativa %}
+                    <input type="hidden" name="unidade" value="{{ unidade_ativa }}">
+                    {% endif %}
+                    <div class="col-md-2">
+                        <label for="micro_area" class="form-label small text-muted mb-1">Microárea</label>
+                        <select class="form-select form-select-sm" id="micro_area" name="micro_area"
+                            {% if not unidade_ativa %}disabled{% endif %}>
+                            <option value="">Todas</option>
+                            {% for m in lista_micro_areas %}
+                            <option value="{{ m }}" {% if filtros_ativos.micro_area == m %}selected{% endif %}>{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if not unidade_ativa %}
+                        <small class="text-muted">Selecione a unidade na tabela</small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-1">
+                        <label for="idade_min" class="form-label small text-muted mb-1">Idade mín</label>
+                        <input type="number" class="form-control form-control-sm" id="idade_min" name="idade_min"
+                            min="0" max="125" value="{{ filtros_ativos.idade_min if filtros_ativos.idade_min is not none else '' }}">
+                    </div>
+                    <div class="col-md-1">
+                        <label for="idade_max" class="form-label small text-muted mb-1">Idade máx</label>
+                        <input type="number" class="form-control form-control-sm" id="idade_max" name="idade_max"
+                            min="0" max="125" value="{{ filtros_ativos.idade_max if filtros_ativos.idade_max is not none else '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="data_nascimento" class="form-label small text-muted mb-1">Data nascimento</label>
+                        <input type="date" class="form-control form-control-sm" id="data_nascimento" name="data_nascimento"
+                            value="{{ filtros_ativos.data_nascimento or '' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="pesquisa" class="form-label small text-muted mb-1">Pesquisa</label>
+                        <select class="form-select form-select-sm" id="pesquisa" name="pesquisa">
+                            <option value="ativo" {% if filtros_ativos.pesquisa == 'ativo' %}selected{% endif %}>Ativo</option>
+                            <option value="mudou_se" {% if filtros_ativos.pesquisa == 'mudou_se' %}selected{% endif %}>Mudou-se</option>
+                            <option value="todos" {% if filtros_ativos.pesquisa == 'todos' %}selected{% endif %}>Todos</option>
+                        </select>
+                    </div>
+                    <div class="col-12 d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                        <a href="{% if condicoes_ativas %}/cadastros/resumo?{% for c in condicoes_ativas %}condicao={{ c }}&{% endfor %}{% else %}/cadastros/resumo{% endif %}"
+                           class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-x-circle"></i> Limpar filtros
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- SEÇÃO: DOCUMENTAÇÃO (Baseada no resumo_cidadao) -->
+        <h5 class="fw-bold text-secondary mb-3 mt-5"><i class="bi bi-card-heading me-2"></i> Documentação</h5>
+        <div class="row g-3">
+            <!-- CPF -->
+            <div class="col-md-4">
+                <div class="card kpi-card border-top-secondary h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted text-uppercase text-center border-bottom pb-2 mb-3">Situação CPF</h6>
+                        <div class="d-flex justify-content-between align-items-center px-3">
+                            <div class="text-center">
+                                <h3 class="text-success fw-bold mb-0">{{ resumo_cidadao.cadastros_com_cpf }}</h3>
+                                <small class="text-muted">Com CPF</small>
+                            </div>
+                            <div class="text-center">
+                                <h3 class="text-danger fw-bold mb-0">{{ resumo_cidadao.cadastros_sem_cpf }}</h3>
+                                <small class="text-muted">Sem CPF</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- CNS -->
+            <div class="col-md-4">
+                <div class="card kpi-card border-top-secondary h-100">
+                    <div class="card-body">
+                        <h6 class="text-muted text-uppercase text-center border-bottom pb-2 mb-3">Situação CNS</h6>
+                        <div class="d-flex justify-content-between align-items-center px-3">
+                            <div class="text-center">
+                                <h3 class="text-success fw-bold mb-0">{{ resumo_cidadao.cadastros_com_cns }}</h3>
+                                <small class="text-muted">Com CNS</small>
+                            </div>
+                            <div class="text-center">
+                                <!-- Assumindo que você queira subtrair o total pelos que têm, caso não tenha criado a query de sem_cns isolada -->
+                                <h3 class="text-danger fw-bold mb-0">{{ resumo_cidadao.total_cadastros_unicos - resumo_cidadao.cadastros_com_cns }}</h3>
+                                <small class="text-muted">Sem CNS</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Sem Ambos -->
+            <div class="col-md-4">
+                <div class="card kpi-card border-top-danger h-100 bg-light">
+                    <div class="card-body d-flex flex-column justify-content-center align-items-center">
+                        <i class="bi bi-exclamation-triangle text-danger fs-1 mb-2"></i>
+                        <h2 class="text-danger fw-bold mb-0">{{ resumo_cidadao.sem_cpf_e_cns }}</h2>
+                        <span class="text-muted text-uppercase mt-1 fw-bold text-center">Sem CPF e Sem CNS</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEÇÃO: CONDIÇÕES DE SAÚDE E HÁBITOS -->
+        <h5 id="condicoes" class="fw-bold text-secondary mb-3 mt-5">
+            <i class="bi bi-heart-pulse-fill text-danger me-2"></i> Condições de Saúde e Hábitos
+        </h5>
+
+        <h6 class="text-muted fw-bold mb-3 mt-4 text-uppercase" style="font-size: 0.85rem;">Doenças Crônicas e Cardiovasculares</h6>
+        <div class="row g-3 mb-3">
+            <div class="col-md-3 col-sm-6">
+                <a href="{{ toggle_urls.hipertensos }}" class="condicao-link{% if 'hipertensos' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.hipertensos }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card border-0 shadow-sm h-100">
+                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="text-muted mb-1" style="font-size: 0.8rem;">Hipertensos</h6>
+                                <h4 class="fw-bold mb-0 text-danger">{{ condicoes.hipertensos }}</h4>
+                                <small class="text-muted" style="font-size: 0.7rem;">
+                                    {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.hipertensos / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                                </small>
+                            </div>
+                            <i class="bi bi-activity fs-2 text-danger opacity-50"></i>
+                        </div>
+                        <div class="mt-2 text-warning d-flex align-items-center" style="font-size: 0.75rem; font-weight: 500;">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Não informado: {{ condicoes.hipertensao_nao_inf | default('0') }}
+                        </div>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <a href="{{ toggle_urls.diabeticos }}" class="condicao-link{% if 'diabeticos' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.diabeticos }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card border-0 shadow-sm h-100">
+                    <div class="card-body p-3 d-flex flex-column justify-content-between">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="text-muted mb-1" style="font-size: 0.8rem;">Diabéticos</h6>
+                                <h4 class="fw-bold mb-0 text-primary">{{ condicoes.diabeticos }}</h4>
+                                <small class="text-muted" style="font-size: 0.7rem;">
+                                    {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.diabeticos / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                                </small>
+                            </div>
+                            <i class="bi bi-droplet-fill fs-2 text-primary opacity-50"></i>
+                        </div>
+                        <div class="mt-2 text-warning d-flex align-items-center" style="font-size: 0.75rem; font-weight: 500;">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Não informado: {{ condicoes.diabete_nao_inf | default('0') }}
+                        </div>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-2 col-sm-4">
+                <a href="{{ toggle_urls.avc }}" class="condicao-link{% if 'avc' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.avc }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card border-0 shadow-sm h-100">
+                    <div class="card-body p-3">
+                        <h6 class="text-muted mb-1" style="font-size: 0.75rem;">AVC</h6>
+                        <h5 class="fw-bold mb-0 text-dark">{{ condicoes.avc }}</h5>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">
+                            {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.avc / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                        </small>
+                        <div class="mt-1 text-warning" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle-fill"></i> Não informado: {{ condicoes.avc_nao_inf | default('0') }}</div>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-2 col-sm-4">
+                <a href="{{ toggle_urls.infarto }}" class="condicao-link{% if 'infarto' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.infarto }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card border-0 shadow-sm h-100">
+                    <div class="card-body p-3">
+                        <h6 class="text-muted mb-1" style="font-size: 0.75rem;">Infarto</h6>
+                        <h5 class="fw-bold mb-0 text-dark">{{ condicoes.infarto }}</h5>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">
+                            {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.infarto / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                        </small>
+                        <div class="mt-1 text-warning" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle-fill"></i> Não informado: {{ condicoes.infarto_nao_inf | default('0') }}</div>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-2 col-sm-4">
+                <a href="{{ toggle_urls.cancer }}" class="condicao-link{% if 'cancer' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.cancer }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card border-0 shadow-sm h-100">
+                    <div class="card-body p-3">
+                        <h6 class="text-muted mb-1" style="font-size: 0.75rem;">Câncer</h6>
+                        <h5 class="fw-bold mb-0 text-dark">{{ condicoes.cancer }}</h5>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">
+                            {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.cancer / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                        </small>
+                        <div class="mt-1 text-warning" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle-fill"></i> Não informado: {{ condicoes.cancer_nao_inf | default('0') }}</div>
+                    </div>
+                </div>
+                </a>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-2 col-sm-4">
+                <a href="{{ toggle_urls.tuberculose }}" class="condicao-link{% if 'tuberculose' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.tuberculose }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card border-0 shadow-sm h-100">
+                    <div class="card-body p-3">
+                        <h6 class="text-muted mb-1" style="font-size: 0.75rem;">Tuberculose</h6>
+                        <h5 class="fw-bold mb-0 text-dark">{{ condicoes.tuberculose }}</h5>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">
+                            {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.tuberculose / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                        </small>
+                        <div class="mt-1 text-warning" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle-fill"></i> Não informado: {{ condicoes.tuberculose_nao_inf | default('0') }}</div>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-2 col-sm-4">
+                <a href="{{ toggle_urls.hanseniase }}" class="condicao-link{% if 'hanseniase' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.hanseniase }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card border-0 shadow-sm h-100">
+                    <div class="card-body p-3">
+                        <h6 class="text-muted mb-1" style="font-size: 0.75rem;">Hanseníase</h6>
+                        <h5 class="fw-bold mb-0 text-dark">{{ condicoes.hanseniase }}</h5>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">
+                            {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.hanseniase / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                        </small>
+                        <div class="mt-1 text-warning" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle-fill"></i> Não informado: {{ condicoes.hanseniase_nao_inf | default('0') }}</div>
+                    </div>
+                </div>
+                </a>
+            </div>
+        </div>
+
+        <h6 class="text-muted fw-bold mb-3 mt-4 text-uppercase" style="font-size: 0.85rem;">Hábitos e Dependências</h6>
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <a href="{{ toggle_urls.fumantes }}" class="condicao-link{% if 'fumantes' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.fumantes }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card border-top-secondary shadow-sm h-100">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-1" style="font-size: 0.8rem;">Fumantes</h6>
+                                <h4 class="fw-bold mb-0 text-dark">{{ condicoes.fumantes }}</h4>
+                                <small class="text-muted" style="font-size: 0.7rem;">
+                                    {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.fumantes / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                                </small>
+                            </div>
+                            <i class="bi bi-lungs-fill fs-2 text-secondary opacity-50"></i>
+                        </div>
+                        <div class="mt-2 text-warning" style="font-size: 0.75rem;"><i class="bi bi-exclamation-triangle-fill"></i> Não informado: {{ condicoes.fumantes_nao_inf | default('0') }}</div>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{{ toggle_urls.uso_alcool }}" class="condicao-link{% if 'uso_alcool' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.uso_alcool }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card border-top-secondary shadow-sm h-100">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-1" style="font-size: 0.8rem;">Uso de Álcool</h6>
+                                <h4 class="fw-bold mb-0 text-dark">{{ condicoes.uso_alcool }}</h4>
+                                <small class="text-muted" style="font-size: 0.7rem;">
+                                    {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.uso_alcool / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                                </small>
+                            </div>
+                            <i class="bi bi-cup-straw fs-2 text-secondary opacity-50"></i>
+                        </div>
+                        <div class="mt-2 text-warning" style="font-size: 0.75rem;"><i class="bi bi-exclamation-triangle-fill"></i> Não informado: {{ condicoes.alcool_nao_inf | default('0') }}</div>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{{ toggle_urls.outras_drogas }}" class="condicao-link{% if 'outras_drogas' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.outras_drogas }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card border-top-secondary shadow-sm h-100">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-muted mb-1" style="font-size: 0.8rem;">Outras Drogas</h6>
+                                <h4 class="fw-bold mb-0 text-dark">{{ condicoes.outras_drogas }}</h4>
+                                <small class="text-muted" style="font-size: 0.7rem;">
+                                    {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.outras_drogas / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                                </small>
+                            </div>
+                            <i class="bi bi-capsule fs-2 text-secondary opacity-50"></i>
+                        </div>
+                        <div class="mt-2 text-warning" style="font-size: 0.75rem;"><i class="bi bi-exclamation-triangle-fill"></i> Não informado: {{ condicoes.drogas_nao_inf | default('0') }}</div>
+                    </div>
+                </div>
+                </a>
+            </div>
+        </div>
+
+        <h6 class="text-muted fw-bold mb-3 mt-4 text-uppercase" style="font-size: 0.85rem;">Mobilidade e Acompanhamento</h6>
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <a href="{{ toggle_urls.acamados }}" class="condicao-link{% if 'acamados' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.acamados }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card shadow-sm h-100">
+                    <div class="card-body p-3">
+                        <h6 class="text-muted mb-1" style="font-size: 0.8rem;"><i class="bi bi-person-bed text-warning me-1"></i> Acamados</h6>
+                        <h4 class="fw-bold mb-0 text-dark">{{ condicoes.acamados }}</h4>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">
+                            {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.acamados / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                        </small>
+                        <div class="mt-1 text-warning" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle-fill"></i> Não informado: {{ condicoes.acamados_nao_inf | default('0') }}</div>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{{ toggle_urls.domiciliados }}" class="condicao-link{% if 'domiciliados' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.domiciliados }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card shadow-sm h-100">
+                    <div class="card-body p-3">
+                        <h6 class="text-muted mb-1" style="font-size: 0.8rem;"><i class="bi bi-house-door text-info me-1"></i> Domiciliados</h6>
+                        <h4 class="fw-bold mb-0 text-dark">{{ condicoes.domiciliados }}</h4>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">
+                            {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.domiciliados / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                        </small>
+                        <div class="mt-1 text-warning" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle-fill"></i> Não informado: {{ condicoes.domiciliados_nao_inf | default('0') }}</div>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{{ toggle_urls.internacao_12_meses }}" class="condicao-link{% if 'internacao_12_meses' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.internacao_12_meses }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card shadow-sm h-100">
+                    <div class="card-body p-3">
+                        <h6 class="text-muted mb-1" style="font-size: 0.8rem;"><i class="bi bi-hospital text-danger me-1"></i> Internações (12m)</h6>
+                        <h4 class="fw-bold mb-0 text-dark">{{ condicoes.internacao_12_meses }}</h4>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">
+                            {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.internacao_12_meses / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                        </small>
+                        <div class="mt-1 text-warning" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle-fill"></i> Não informado: {{ condicoes.internacao_nao_inf | default('0') }}</div>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{{ toggle_urls.saude_mental }}" class="condicao-link{% if 'saude_mental' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.saude_mental }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card shadow-sm h-100">
+                    <div class="card-body p-3">
+                        <h6 class="text-muted mb-1" style="font-size: 0.8rem;"><i class="bi bi-head-bandage text-primary me-1"></i> Saúde Mental</h6>
+                        <h4 class="fw-bold mb-0 text-dark">{{ condicoes.saude_mental }}</h4>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">
+                            {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.saude_mental / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                        </small>
+                        <div class="mt-1 text-warning" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle-fill"></i> Não informado: {{ condicoes.saude_mental_nao_inf | default('0') }}</div>
+                    </div>
+                </div>
+                </a>
+            </div>
+        </div>
+
+        <h6 class="text-muted fw-bold mb-3 mt-4 text-uppercase" style="font-size: 0.85rem;">Terapias e Práticas</h6>
+        <div class="row g-3 mb-5">
+            <div class="col-md-3">
+                <a href="{{ toggle_urls.plantas_medicinais }}" class="condicao-link{% if 'plantas_medicinais' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.plantas_medicinais }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card shadow-sm h-100 bg-light">
+                    <div class="card-body p-3">
+                        <h6 class="text-muted mb-1" style="font-size: 0.8rem;">Plantas Medicinais</h6>
+                        <h4 class="fw-bold mb-0 text-success">{{ condicoes.plantas_medicinais }}</h4>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">
+                            {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.plantas_medicinais / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                        </small>
+                        <div class="mt-1 text-warning" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle-fill"></i> Não informado: {{ condicoes.plantas_nao_inf | default('0') }}</div>
+                    </div>
+                </div>
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{{ toggle_urls.pics }}" class="condicao-link{% if 'pics' in condicoes_ativas %} ativa{% endif %}" hx-get="{{ toggle_urls.pics }}" hx-target="body" hx-push-url="true">
+                <div class="card kpi-card shadow-sm h-100 bg-light">
+                    <div class="card-body p-3">
+                        <h6 class="text-muted mb-1" style="font-size: 0.8rem;">Práticas Integrativas (PICs)</h6>
+                        <h4 class="fw-bold mb-0 text-success">{{ condicoes.pics }}</h4>
+                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">
+                            {% if condicoes.total_base %}{{ "%.1f"|format((condicoes.pics / condicoes.total_base) * 100) }}% da base{% else %}0%{% endif %}
+                        </small>
+                        <div class="mt-1 text-warning" style="font-size: 0.7rem;"><i class="bi bi-exclamation-triangle-fill"></i> Não informado: {{ condicoes.pics_nao_inf | default('0') }}</div>
+                    </div>
+                </div>
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{% set perms = request.session.get('permissoes', []) %}
+<div class="mb-4">
+    <h3 class="fw-bold mb-3">Configurações</h3>
+    <ul class="nav nav-tabs">
+        {% if 'configuracoes' in perms %}
+        <li class="nav-item">
+            <a class="nav-link {% if aba_ativa == 'conexao' %}active{% endif %}" href="/configuracoes">
+                <i class="bi bi-plug me-1"></i> Conexão
+            </a>
+        </li>
+        {% endif %}
+        {% if 'usuarios' in perms %}
+        <li class="nav-item">
+            <a class="nav-link {% if aba_ativa == 'usuarios' %}active{% endif %}" href="/usuarios">
+                <i class="bi bi-people me-1"></i> Usuários
+            </a>
+        </li>
+        {% endif %}
+        {% if request.session.get('tipo') == 'administrador' %}
+        <li class="nav-item">
+            <a class="nav-link {% if aba_ativa == 'extracao' %}active{% endif %}" href="/configuracoes/extracao">
+                <i class="bi bi-database-down me-1"></i> Extração
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</div>

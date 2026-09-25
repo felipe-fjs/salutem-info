@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+jinja2
+pydantic-settings
+python-dotenv
+itsdangerous
+python-multipart

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F Script - {{ condicao_label }} por unidade</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        body { background-color: #f4f6f9; }
+
+        .sidebar {
+            width: 260px;
+            height: 100vh;
+            position: fixed;
+            background-color: #1a2235;
+            color: white;
+            z-index: 1000;
+        }
+        .sidebar-brand { border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar-link {
+            color: #adb5bd;
+            text-decoration: none;
+            padding: 10px 20px;
+            display: block;
+            transition: 0.2s;
+        }
+        .sidebar-link:hover, .sidebar-link.active {
+            color: white;
+            background-color: rgba(255,255,255,0.05);
+            border-left: 4px solid #0d6efd;
+        }
+
+        .main-content {
+            margin-left: 260px;
+            padding: 30px;
+        }
+
+        .kpi-card {
+            border-radius: 8px;
+            border: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        }
+        .border-top-primary { border-top: 4px solid #0d6efd; }
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar d-flex flex-column">
+        <div class="sidebar-brand p-4 text-center">
+            <i class="bi bi-triangle-half fs-2 text-primary"></i>
+            <h5 class="mt-2 mb-0 fw-bold">F SCRIPT</h5>
+            <small class="text-muted">v2.0</small>
+        </div>
+        <div class="flex-grow-1 py-3">
+            {% set ativo = 'condicoes' %}
+            {% include "util/menu_links.html" %}
+        </div>
+        <div class="p-3 border-top border-secondary">
+            <div class="d-flex align-items-center">
+                <div class="bg-primary rounded-circle text-center me-2" style="width: 35px; height: 35px; line-height: 35px;">A</div>
+                <div>
+                    <span class="d-block" style="font-size: 0.9rem;">{{ request.session.get('user', '') }}</span>
+                    <a href="/logout" class="text-danger text-decoration-none" style="font-size: 0.875em;"><i class="bi bi-box-arrow-right"></i> Sair</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
+            <div>
+                <h3 class="fw-bold mb-0">{{ condicao_label }} por unidade</h3>
+                <p class="text-muted mb-0"><i class="bi bi-geo-alt-fill text-danger"></i> Marechal Deodoro - AL</p>
+                <p class="text-muted small mb-0 mt-1">
+                    Total no município: <strong>{{ total_geral }}</strong>
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="/cadastros/resumo?condicao={{ condicao }}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-bar-chart"></i> Ver resumo filtrado
+                </a>
+                <a href="/cadastros/resumo#condicoes" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left"></i> Voltar ao resumo
+                </a>
+            </div>
+        </div>
+
+        {% include "util/extracao_aviso.html" %}
+
+        <div class="card kpi-card border-top-primary">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col">Unidade</th>
+                                <th scope="col">CNES</th>
+                                <th scope="col" class="text-end">Quantidade</th>
+                                <th scope="col">Distribuição</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if linhas %}
+                                {% for u in linhas %}
+                                <tr>
+                                    <td>{{ u.no_unidade_saude }}</td>
+                                    <td>{{ u.nu_cnes or '—' }}</td>
+                                    <td class="text-end fw-semibold">{{ u.total }}</td>
+                                    <td>{{ '%.1f'|format(u.pct) }}% dos {{ condicao_label_genitivo }} do município</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">Nenhum registro encontrado</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

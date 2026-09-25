@@ -1,0 +1,25 @@
+# Ambiente virtual
+venv/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# Segredos e dados locais
+.env
+data/db_config.json
+data/*.db
+*.sqlite
+
+# Rascunhos
+rascunhos
+
+# Editor e sistema
+.idea/
+.vscode/
+Thumbs.db
+Desktop.ini

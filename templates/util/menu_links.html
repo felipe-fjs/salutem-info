@@ -1,0 +1,13 @@
+{% set perms = request.session.get('permissoes', []) %}
+{% if 'inicio' in perms %}
+<a href="/cadastros/resumo" class="sidebar-link {% if ativo == 'inicio' %}active{% endif %}"><i class="bi bi-house-door me-2"></i> Início</a>
+{% endif %}
+{% if 'condicoes' in perms %}
+<a href="/cadastros/condicoes" class="sidebar-link {% if ativo == 'condicoes' %}active{% endif %}"><i class="bi bi-heart-pulse me-2"></i> Condições</a>
+{% endif %}
+{% if 'obitos' in perms %}
+<a href="/cadastros/obitos" class="sidebar-link {% if ativo == 'obitos' %}active{% endif %}"><i class="bi bi-clipboard2-pulse me-2"></i> Óbitos</a>
+{% endif %}
+{% if 'configuracoes' in perms or 'usuarios' in perms %}
+<a href="{% if 'configuracoes' in perms %}/configuracoes{% else %}/usuarios{% endif %}" class="sidebar-link {% if ativo == 'configuracoes' or ativo == 'usuarios' %}active{% endif %}"><i class="bi bi-gear me-2"></i> Configurações</a>
+{% endif %}

@@ -1,0 +1,10 @@
+{% if sem_extracao %}
+<div class="alert alert-warning">
+    Ainda não há extração dos dados. Os números desta tela aparecem depois que um administrador extrair a cópia do e-SUS.
+    {% if request.session.get('tipo') == 'administrador' %}
+    <a href="/configuracoes/extracao" class="alert-link">Abrir a aba Extração</a>.
+    {% endif %}
+</div>
+{% elif extracao_em %}
+<p class="text-muted small mb-3">Extraído em {{ extracao_em }}</p>
+{% endif %}
